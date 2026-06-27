@@ -13,7 +13,8 @@ document.getElementById("enrich-btn").addEventListener("click", async () => {
     statusDiv.innerText = "Sending to enrichment pipe...";
     
     try {
-      let res = await fetch("http://localhost:8000/api/enrich-single", {
+      // UPDATED: Changed from http://localhost:8000 to your live Railway domain
+      let res = await fetch("https://web-production-2054f.up.railway.app/api/enrich-single", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(response)
@@ -21,7 +22,7 @@ document.getElementById("enrich-btn").addEventListener("click", async () => {
       let result = await res.json();
       statusDiv.innerText = "🎯 Complete! Score queued on Dashboard.";
     } catch (err) {
-      statusDiv.innerText = "Failed connection to local backend app.";
+      statusDiv.innerText = "Failed connection to live Railway backend app.";
     }
   });
 });
