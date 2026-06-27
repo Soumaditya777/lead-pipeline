@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sales Intelligence Ingestion Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-950 antialiased" x-data="salesPipelineApp()" x-init="initializeSystem()">
+    <div class="max-w-7xl mx-auto p-8">
+        <header class="flex justify-between items-center border-b border-slate-200 pb-5 mb-8">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">Pipeline Qualifier</h1>
+                <p class="text-sm text-slate-500 mt-1">Autonomous Multi-Source Enrichment Engine & Semantic Scoring Suite</p>
+            </div>
+            <div class="flex bg-slate-200/80 p-1 rounded-lg gap-1 text-sm font-medium">
+                <button @click="activeTab = 'pipeline'" :class="activeTab === 'pipeline' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'" class="px-4 py-2 rounded-md transition">Workspace Table</button>
+                <button @click="activeTab = 'icp'" :class="activeTab === 'icp' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'" class="px-4 py-2 rounded-md transition">ICP Parameters</button>
+                <button @click="activeTab = 'upload'" :class="activeTab === 'upload' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'" class="px-4 py-2 rounded-md transition">CSV Ingestion</button>
+            </div>
+        </header>
+
+        <div x-show="activeTab === 'pipeline'" class="space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-600">
+                        <tr>
+                            <th class="p-4">Contact Profile</th>
+                            <th class="p-4">Corporate Entity</th>
+                            <th class="p-4">Semantic ICP Fit</th>
+                            <th class="p-4">Core Buying Indicator</th>
+                            <th class="p-4">Pipeline Step</th>
+                            <th class="p-4">CRM Sync Status</th>
+                            <th class="p-4 text-right">Execution</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm">
+                        <template x-for="lead in leads" :key="lead.id">
+                            <tr class="hover:bg-slate-50/80 cursor-pointer transition" @click="selectedLead = lead">
+                                <td class="p-4">
+                                    <div class="font-semibold text-slate-900" x-text="lead.first_name"></div>
+                                    <div class="text-xs text-slate-400" x-text="lead.role_seniority"></div>
+                                </td>
+                                <td class="p-4">
+                                    <div class="text-slate-800 font-medium" x-text="lead.company_name"></div>
+                                    <div class="text-xs text-slate-400 font-mono" x-text="lead.email_domain || 'no domain input'"></div>
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-24 bg-slate-200 rounded-full h-2 overflow-hidden">
+                                            <div class="bg-blue-600 h-2 rounded-full" :style="`width: ${lead.icp_score}%`"></div>
+                                        </div>
+                                        <span class="text-xs font-bold text-slate-700" x-text="`${lead.icp_score}%`"></span>
+                                    </div>
+                                </td>
+                                <td class="p-4">
+                                    <span x-show="lead.buying_signals.length > 0" class="px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 inline-block max-w-[220px] truncate" x-text="lead.buying_signals[0]?.signal"></span>
+                                    <span x-show="lead.buying_signals.length === 0" class="text-slate-400 italic text-xs">No active signals</span>
+                                </td>
+                                <td class="p-4">
+                                    <span :class="{
+                                        'bg-slate-100 text-slate-700': lead.enrichment_status === 'pending',
+                                        'bg-amber-100 text-amber-800 animate-pulse': ['website','news','scoring','llm'].includes(lead.enrichment_status),
+                                        'bg-emerald-100 text-emerald-800': lead.enrichment_status === 'completed',
+                                        'bg-rose-100 text-rose-800': lead.enrichment_status === 'failed'
+                                    }" class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">
+                                        <span x-text="lead.enrichment_status === 'website' ? 'Scraping Web...' : 
+                                                     lead.enrichment_status === 'news' ? 'Scraping News...' :
+                                                     lead.enrichment_status === 'scoring' ? 'Vector Math...' :
+                                                     lead.enrichment_status === 'llm' ? 'Local LLM...' : lead.enrichment_status"></span>
+                                    </span>
+                                </td>
+                                <td class="p-4">
+                                    <span :class="lead.crm_status === 'synced' ? 'text-emerald-600 font-medium' : 'text-slate-400'" class="text-xs flex items-center gap-1.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                                        <span x-text="lead.crm_status"></span>
+                                    </span>
+                                </td>
+                                <td class="p-4 text-right" @click.stop>
+                                    <button @click="enrichLeadTarget(lead.id)" :disabled="['website','news','scoring','llm'].includes(lead.enrichment_status)" class="bg-slate-900 text-white font-medium px-4 py-1.5 rounded-lg text-xs hover:bg-slate-800 disabled:opacity-40 transition">Qualify</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div x-show="activeTab === 'icp'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2 space-y-4">
+                <h3 class="text-lg font-bold text-slate-900 border-b pb-2">ICP Targeting Matrix</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="block text-xs font-bold uppercase tracking-wide text-slate-600">Target Size Vector Context:
+                        <input type="text" x-model="settings.target_size" class="mt-1 w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:outline-none"/>
+                    </label>
+                    <label class="block text-xs font-bold uppercase tracking-wide text-slate-600">Target Industries Matrix:
+                        <input type="text" x-model="settings.target_industries" class="mt-1 w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:outline-none"/>
+                    </label>
+                    <label class="block text-xs font-bold uppercase tracking-wide text-slate-600">Required Tech Indicators:
+                        <input type="text" x-model="settings.required_tech" class="mt-1 w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:outline-none"/>
+                    </label>
+                    <label class="block text-xs font-bold uppercase tracking-wide text-slate-600">Minimum Seniority Constraint:
+                        <input type="text" x-model="settings.min_seniority" class="mt-1 w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:outline-none"/>
+                    </label>
+                </div>
+                <label class="block text-xs font-bold uppercase tracking-wide text-slate-600">Negative Filter Exclusion String (Disqualifiers):
+                    <input type="text" x-model="settings.disqualifiers" class="mt-1 w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:outline-none"/>
+                </label>
+                
+                <h3 class="text-lg font-bold text-slate-900 border-b pb-2 pt-2">Weight Distribution Formula</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <label class="block text-xs font-bold text-slate-600">Size Weight:<input type="number" step="0.05" x-model.number="settings.weight_size" class="mt-1 w-full p-2 border rounded-lg text-sm bg-slate-50"/></label>
+                    <label class="block text-xs font-bold text-slate-600">Industry Weight:<input type="number" step="0.05" x-model.number="settings.weight_industry" class="mt-1 w-full p-2 border rounded-lg text-sm bg-slate-50"/></label>
+                    <label class="block text-xs font-bold text-slate-600">Tech Weight:<input type="number" step="0.05" x-model.number="settings.weight_tech" class="mt-1 w-full p-2 border rounded-lg text-sm bg-slate-50"/></label>
+                    <label class="block text-xs font-bold text-slate-600">Seniority Weight:<input type="number" step="0.05" x-model.number="settings.weight_seniority" class="mt-1 w-full p-2 border rounded-lg text-sm bg-slate-50"/></label>
+                </div>
+
+                <h3 class="text-lg font-bold text-slate-900 border-b pb-2 pt-2">Corporate Context & Generation Bounds</h3>
+                <div class="space-y-3">
+                    <label class="block text-xs font-bold text-slate-600">Product Description Profile:
+                        <textarea rows="2" x-model="settings.product_description" class="mt-1 w-full p-2 border rounded-lg text-sm bg-slate-50"></textarea>
+                    </label>
+                    <label class="block text-xs font-bold text-slate-600">Corporate Target Value Proposition:
+                        <textarea rows="2" x-model="settings.value_proposition" class="mt-1 w-full p-2 border rounded-lg text-sm bg-slate-50"></textarea>
+                    </label>
+                    <label class="block text-xs font-bold text-slate-600">Email Qualification Cutoff Threshold:
+                        <input type="number" x-model.number="settings.score_threshold" class="mt-1 w-full p-2 border rounded-lg text-sm bg-slate-50"/>
+                    </label>
+                </div>
+                <div class="pt-4 flex justify-between items-center">
+                    <button @click="triggerSimulationRun()" class="bg-slate-100 text-slate-700 font-semibold px-4 py-2 rounded-lg text-sm hover:bg-slate-200 transition">Test Against Sample Profile</button>
+                    <button @click="commitConfigurationSettings()" class="bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg text-sm hover:bg-blue-700 transition">Save Adjustments</button>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit space-y-4">
+                <h4 class="font-bold text-slate-900">Live Equation Simulator</h4>
+                <p class="text-xs text-slate-500">Evaluates the adjusted math formula against a baseline profile text input containing disparate variables.</p>
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-100 text-xs space-y-2">
+                    <div><strong>Mock Position:</strong> Head of Platform Engineering</div>
+                    <div><strong>Mock Narrative:</strong> "...boutique infrastructure hub with 45 engineers using Stripe & React..."</div>
+                </div>
+                <div class="border-t pt-3 flex justify-between items-center">
+                    <span class="text-sm font-semibold text-slate-600">Projected Value Output:</span>
+                    <span class="text-xl font-black text-blue-600" x-text="simulatedScore !== null ? `${simulatedScore}%` : '---'"></span>
+                </div>
+            </div>
+        </div>
+
+        <div x-show="activeTab === 'upload'" class="space-y-6">
+            <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center max-w-2xl mx-auto">
+                <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400 font-mono text-xl font-bold">↑</div>
+                <h3 class="text-lg font-bold text-slate-900 mb-1">Upload Pipeline Manifest</h3>
+                <p class="text-xs text-slate-500 mb-4">Files are cross-checked locally on the client layer for column formatting schemas before processing.</p>
+                <input type="file" @change="parseAndValidateCSVFile" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                <div x-show="csvError" class="mt-4 p-3 bg-rose-50 text-rose-700 border border-rose-100 rounded-lg text-xs font-medium" x-text="csvError"></div>
+            </div>
+
+            <div x-show="csvPreviewRows.length > 0" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl mx-auto">
+                <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Client Ingestion Stage Data Preview (First 5 Items)</span>
+                    <button @click="submitValidatedCSVPayload()" class="bg-blue-600 text-white font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-blue-700 transition">Commit Payload to Core</button>
+                </div>
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-slate-100 font-bold border-b text-slate-600">
+                        <tr>
+                            <th class="p-3">first_name</th>
+                            <th class="p-3">company_name</th>
+                            <th class="p-3">role_seniority</th>
+                            <th class="p-3">email_domain</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-700">
+                        <template x-for="row in csvPreviewRows">
+                            <tr>
+                                <td class="p-3 font-mono" x-text="row.first_name"></td>
+                                <td class="p-3 font-mono" x-text="row.company_name"></td>
+                                <td class="p-3 font-mono" x-text="row.role_seniority"></td>
+                                <td class="p-3 font-mono" x-text="row.email_domain"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div x-show="selectedLead" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+            <div class="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[85vh] overflow-hidden border border-slate-200 flex flex-col" @click.away="selectedLead = null">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900" x-text="selectedLead?.first_name"></h3>
+                        <p class="text-xs font-medium text-slate-500 mt-0.5" x-text="`Target Workspace: ${selectedLead?.company_name}`"></p>
+                    </div>
+                    <button @click="selectedLead = null" class="text-slate-400 hover:text-slate-600 font-mono text-xl font-bold transition">&times;</button>
+                </div>
+
+                <div class="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+                    <div>
+                        <h4 class="font-bold uppercase tracking-wider text-slate-400 text-[10px] mb-2.5">Enriched Field Matrices & Inference Confidence Tiers</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-slate-400 block mb-0.5">Size Data</span>
+                                <strong class="text-slate-800 text-sm" x-text="selectedLead?.company_size"></strong>
+                                <span class="block text-[10px] uppercase font-bold text-blue-600 mt-1" x-text="`Confidence: ${selectedLead?.company_size_confidence}`"></span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-slate-400 block mb-0.5">Industry Context</span>
+                                <strong class="text-slate-800 text-sm" x-text="selectedLead?.industry"></strong>
+                                <span class="block text-[10px] uppercase font-bold text-blue-600 mt-1" x-text="`Confidence: ${selectedLead?.industry_confidence}`"></span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-slate-400 block mb-0.5">Funding State</span>
+                                <strong class="text-slate-800 text-sm" x-text="selectedLead?.funding_status"></strong>
+                                <span class="block text-[10px] uppercase font-bold text-blue-600 mt-1" x-text="`Confidence: ${selectedLead?.funding_status_confidence}`"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold uppercase tracking-wider text-slate-400 text-[10px] mb-2.5">Equation Vector Match Diagnostics</h4>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2 font-mono">
+                            <div class="flex justify-between"><span>Size Vector Distance Match:</span><span class="font-bold text-slate-800" x-text="`${selectedLead?.icp_breakdown?.size_match}%`"></span></div>
+                            <div class="flex justify-between"><span>Industry Vector Distance Match:</span><span class="font-bold text-slate-800" x-text="`${selectedLead?.icp_breakdown?.industry_match}%`"></span></div>
+                            <div class="flex justify-between"><span>Title / Responsibility Match:</span><span class="font-bold text-slate-800" x-text="`${selectedLead?.icp_breakdown?.role_match}%`"></span></div>
+                            <div class="flex justify-between"><span>Tech Footprint Binary Score:</span><span class="font-bold text-slate-800" x-text="`${selectedLead?.icp_breakdown?.tech_match}%`"></span></div>
+                            <div x-show="selectedLead?.icp_breakdown?.disqualified" class="text-rose-600 font-bold pt-1 border-t">⚠️ Excluded by Disqualifier Negative Pattern Match Rules</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold uppercase tracking-wider text-slate-400 text-[10px] mb-2">Harvested Growth Indicators & Sources</h4>
+                        <div class="space-y-2">
+                            <template x-for="sig in selectedLead?.buying_signals">
+                                <div class="p-3 bg-emerald-50/50 text-emerald-950 border border-emerald-100 rounded-xl flex justify-between items-center">
+                                    <span x-text="sig.signal"></span>
+                                    <span class="text-[10px] font-bold uppercase bg-white px-2 py-0.5 rounded border border-emerald-200" x-text="sig.source"></span>
+                                </div>
+                            </template>
+                            <div x-show="selectedLead?.buying_signals?.length === 0" class="text-slate-400 italic">No external chronological timeline growth vectors found.</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold uppercase tracking-wider text-slate-400 text-[10px] mb-2.5">Personalized Local Generation Variants (Exactly 2 Tones Loaded)</h4>
+                        <div class="space-y-4">
+                            <template x-for="draft in selectedLead?.outreach_drafts">
+                                <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+                                    <div class="bg-slate-100 p-2.5 px-4 font-bold text-slate-700 flex justify-between items-center border-b border-slate-200">
+                                        <span x-text="`Alternative Tone Profile: ${draft.tone}`"></span>
+                                        <button @click="navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`); alert('Payload recorded to clipboard.');" class="text-blue-600 hover:underline font-bold text-[10px] tracking-wide uppercase">Copy Payload</button>
+                                    </div>
+                                    <div class="p-4 space-y-2 font-sans text-slate-800">
+                                        <div><strong>Subject:</strong> <span x-text="draft.subject"></span></div>
+                                        <div class="whitespace-pre-line text-slate-600 leading-relaxed pt-1 border-t border-slate-200/60" x-text="draft.body"></div>
+                                    </div>
+                                </div>
+                            </template>
+                            <div x-show="selectedLead?.outreach_drafts?.length === 0" class="text-slate-400 italic bg-amber-50 text-amber-900 p-3 border border-amber-200 rounded-xl">Lead target profile evaluates below threshold score parameters. Local variant compilation omitted.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function salesPipelineApp() {
+            return {
+                activeTab: 'pipeline',
+                leads: [],
+                settings: {},
+                simulatedScore: null,
+                selectedLead: null,
+                csvError: null,
+                csvPreviewRows: [],
+                rawCSVFileObject: null,
+
+                async initializeSystem() {
+                    await this.pullWorkspaceLeads();
+                    await this.pullConfigurationParameters();
+                },
+                async pullWorkspaceLeads() {
+                    const res = await fetch('/api/leads');
+                    this.leads = await res.json();
+                },
+                async pullConfigurationParameters() {
+                    const res = await fetch('/api/settings');
+                    this.settings = await res.json();
+                },
+                async commitConfigurationSettings() {
+                    await fetch('/api/settings', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(this.settings)
+                    });
+                    alert('Target parameters adjusted successfully.');
+                },
+                async triggerSimulationRun() {
+                    const res = await fetch('/api/simulate-preview', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(this.settings)
+                    });
+                    const payload = await res.json();
+                    this.simulatedScore = payload.simulated_score;
+                },
+                parseAndValidateCSVFile(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    this.rawCSVFileObject = file;
+                    this.csvError = null;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        const lines = evt.target.result.split('\n');
+                        if (lines.length === 0) { this.csvError = "Target document contains no readable structure."; return; }
+                        
+                        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                        const required = ['first_name', 'company_name', 'role_seniority', 'email_domain'];
+                        const missing = required.filter(h => !headers.includes(h));
+                        
+                        if (missing.length > 0) {
+                            this.csvError = `Missing mandatory header schemas: ${missing.join(', ')}`;
+                            this.csvPreviewRows = [];
+                            return;
+                        }
+
+                        // Extract data preview records
+                        let tempRows = [];
+                        for(let i = 1; i < Math.min(6, lines.length); i++) {
+                            if (!lines[i].trim()) continue;
+                            let cols = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+                            if (cols.length >= headers.length) {
+                                tempRows.push({
+                                    first_name: cols[headers.indexOf('first_name')],
+                                    company_name: cols[headers.indexOf('company_name')],
+                                    role_seniority: cols[headers.indexOf('role_seniority')],
+                                    email_domain: cols[headers.indexOf('email_domain')]
+                                });
+                            }
+                        }
+                        this.csvPreviewRows = tempRows;
+                    };
+                    reader.readAsText(file);
+                },
+                async submitValidatedCSVPayload() {
+                    if (!this.rawCSVFileObject) return;
+                    let formData = new FormData();
+                    formData.append("file", this.rawCSVFileObject);
+                    await fetch('/api/upload-csv', { method: 'POST', body: formData });
+                    this.csvPreviewRows = [];
+                    this.activeTab = 'pipeline';
+                    await this.pullWorkspaceLeads();
+                },
+                async enrichLeadTarget(id) {
+                    const match = this.leads.find(l => l.id === id);
+                    if (match) match.enrichment_status = 'website';
+                    
+                    // Fire-and-forget long polling monitor routine
+                    fetch(`/api/enrich/${id}`, { method: 'POST' }).then(() => this.pullWorkspaceLeads());
+                    
+                    // Intermittent polling loop intervals to render changing steps
+                    let pollInterval = setInterval(async () => {
+                        await this.pullWorkspaceLeads();
+                        const current = this.leads.find(l => l.id === id);
+                        if (current && ['completed', 'failed'].includes(current.enrichment_status)) {
+                            clearInterval(pollInterval);
+                        }
+                    }, 1200);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

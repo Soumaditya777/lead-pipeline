@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "B2B Lead Qualifier Pipeline",
+  "version": "1.0",
+  "permissions": ["activeTab", "scripting"],
+  "background": {},
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
